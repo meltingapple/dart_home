@@ -1,0 +1,46 @@
+import requests
+import json
+import time
+from xml.etree import ElementTree
+
+WATCH_LIST_FILE = 'watch_list.json'
+NEWS_DATA_FILE = 'news_data.json'
+
+def fetch_news(keyword, max_items=5):
+    url = f'https://news.google.com/rss/search?q={keyword}+뉴스&hl=ko&gl=KR&ceid=KR:ko'
+    resp = requests.get(url, timeout=10)
+    tree = ElementTree.fromstring(resp.content)
+    items = tree.findall('.//item')
+    news_list = []
+    for item in items[:max_items]:
+        title = item.find('title').text
+        link = item.find('link').text
+        pubdate = item.find('pubDate').text
+        news_list.append({
+            'stock': keyword,
+            'title': title,
+            'link': link,
+            'date': pubdate
+        })
+    return news_list
+
+def main():
+    with open(WATCH_LIST_FILE, 'r', encoding='utf-8') as f:
+        stocks = json.load(f)
+    all_news = []
+    for stock in stocks:
+        try:
+            news = fetch_news(stock)
+            all_news.extend(news)
+            print(f"{stock} - {len(news)} news fetched")
+            time.sleep(1)  # 너무 빨리하면 차단당할 수 있으니 1초 휴식
+        except Exception as e:
+            print(f"Error for {stock}: {e}")
+    # 날짜순 정렬
+    all_news.sort(key=lambda x: x['date'], reverse=True)
+    with open(NEWS_DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(all_news, f, ensure_ascii=False, indent=2)
+    print("Done. News data saved.")
+
+if __name__ == "__main__":
+    main()
